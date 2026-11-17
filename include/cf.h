@@ -160,9 +160,10 @@ static inline CF_MAYBE_UNUSED int cf_core_all(const void *in,
 
 /*
  * CF_DEFINE(T, prefix) — thin typed wrappers over the generic core,
- * for element type T, with the given name prefix. The macro
- * generates declarations, one 3-line adapter per callback kind, and
- * one forwarding stub per combinator. No loop lives in the macro.
+ * for element type T, with the given name prefix. This is the only
+ * macro in the public API. Its implementation is split into the
+ * CF_INTERNAL_* helper macros below, one per concern, so no single
+ * macro is a wall of code; do not invoke the helpers directly.
  *
  * Generated:
  *
@@ -194,14 +195,20 @@ static inline CF_MAYBE_UNUSED int cf_core_all(const void *in,
  * T must be a plain type name; typedef anything complicated first.
  * Invoke at file scope, once per prefix per translation unit.
  */
-#define CF_DEFINE(T, prefix) \
+
+/* Slice + callback + bundle typedefs. */
+#define CF_INTERNAL_TYPES(T, prefix) \
     typedef struct { T *ptr; size_t len; } prefix##_slice; \
     typedef int (*prefix##_pred)(T value, void *ctx); \
     typedef T (*prefix##_map_fn)(T value, void *ctx); \
     typedef T (*prefix##_fold_fn)(T acc, T value, void *ctx); \
     typedef struct { prefix##_map_fn fn; void *ctx; } prefix##_map_bundle; \
     typedef struct { prefix##_pred fn; void *ctx; } prefix##_pred_bundle; \
-    typedef struct { prefix##_fold_fn fn; void *ctx; } prefix##_fold_bundle; \
+    typedef struct { prefix##_fold_fn fn; void *ctx; } prefix##_fold_bundle;
+
+/* Adapters: translate a typed callback to the untyped element
+ * pointers the generic core walks. One 3-line function per kind. */
+#define CF_INTERNAL_ADAPTERS(T, prefix) \
     static CF_MAYBE_UNUSED void prefix##_map_adapter(void *out_elem, \
             const void *in_elem, void *bundle) { \
         prefix##_map_bundle *b = (prefix##_map_bundle *)bundle; \
@@ -215,7 +222,10 @@ static inline CF_MAYBE_UNUSED int cf_core_all(const void *in,
             const void *elem, void *bundle) { \
         prefix##_fold_bundle *b = (prefix##_fold_bundle *)bundle; \
         *(T *)acc = b->fn(*(T *)acc, *(const T *)elem, b->ctx); \
-    } \
+    }
+
+/* Slice construction and O(1) views. */
+#define CF_INTERNAL_SLICE(T, prefix) \
     static inline CF_MAYBE_UNUSED prefix##_slice prefix##_from(T *ptr, size_t len) { \
         prefix##_slice s; \
         s.ptr = ptr; \
@@ -241,7 +251,10 @@ static inline CF_MAYBE_UNUSED int cf_core_all(const void *in,
             out.len = s.len - n; \
         } \
         return out; \
-    } \
+    }
+
+/* Element-wise transforms into a caller-provided buffer. */
+#define CF_INTERNAL_TRANSFORM(T, prefix) \
     static inline CF_MAYBE_UNUSED prefix##_slice prefix##_map(prefix##_slice s, T *out, \
             prefix##_map_fn fn, void *ctx) { \
         prefix##_map_bundle b; \
@@ -263,7 +276,10 @@ static inline CF_MAYBE_UNUSED int cf_core_all(const void *in,
         result.len = cf_core_filter(s.ptr, out, s.len, sizeof(T), \
             prefix##_pred_adapter, &b); \
         return result; \
-    } \
+    }
+
+/* Reductions and search. */
+#define CF_INTERNAL_REDUCE(T, prefix) \
     static inline CF_MAYBE_UNUSED T prefix##_fold(prefix##_slice s, T init, \
             prefix##_fold_fn fn, void *ctx) { \
         prefix##_fold_bundle b; \
@@ -279,7 +295,10 @@ static inline CF_MAYBE_UNUSED int cf_core_all(const void *in,
         b.fn = pred; \
         b.ctx = ctx; \
         return (T *)cf_core_find(s.ptr, s.len, sizeof(T), prefix##_pred_adapter, &b); \
-    } \
+    }
+
+/* Short-circuit predicates. */
+#define CF_INTERNAL_PREDICATE(T, prefix) \
     static inline CF_MAYBE_UNUSED int prefix##_any(prefix##_slice s, prefix##_pred pred, \
             void *ctx) { \
         prefix##_pred_bundle b; \
@@ -293,7 +312,18 @@ static inline CF_MAYBE_UNUSED int cf_core_all(const void *in,
         b.fn = pred; \
         b.ctx = ctx; \
         return cf_core_all(s.ptr, s.len, sizeof(T), prefix##_pred_adapter, &b); \
-    } \
+    }
+
+/* The public macro: just the six pieces, in order. The trailing
+ * semicolon-less typedef swallows the user's `;` after
+ * `CF_DEFINE(T, prefix);` so it stays -pedantic-clean. */
+#define CF_DEFINE(T, prefix) \
+    CF_INTERNAL_TYPES(T, prefix) \
+    CF_INTERNAL_ADAPTERS(T, prefix) \
+    CF_INTERNAL_SLICE(T, prefix) \
+    CF_INTERNAL_TRANSFORM(T, prefix) \
+    CF_INTERNAL_REDUCE(T, prefix) \
+    CF_INTERNAL_PREDICATE(T, prefix) \
     typedef char prefix##_cf_defined[1]
 
 #ifdef __cplusplus
