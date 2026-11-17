@@ -1,5 +1,7 @@
 # c-functional
 
+[![CI](https://github.com/Reim-developer/c-functional/actions/workflows/ci.yml/badge.svg)](https://github.com/Reim-developer/c-functional/actions/workflows/ci.yml)
+
 Functional programming for C99-C11: map, filter, fold, take. Header-only.
 
 The classic functional combinators over slices, with real type safety:
