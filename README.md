@@ -16,6 +16,8 @@ mismatch is a compile error — not a `void*` cast that fails at runtime.
 - **Header-only.** Copy `include/cf.h` into your project; nothing to link.
 - **C99 baseline.** No `_Generic`, no `typeof`, no designated initializers —
   it compiles from C99 through C23, including on old compilers.
+- **Cross-platform.** CI tests Linux (gcc/clang), macOS (AppleClang) and
+  Windows (MSVC).
 - **No hidden allocation.** `map`/`filter` write into a buffer you provide;
   the library never calls `malloc`.
 - **No closures in C**, so every combinator takes a `void *ctx` context
