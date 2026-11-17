@@ -143,6 +143,15 @@ make test    # same suite with $(CC) at -std=c99
 
 Everything is compiled with `-Wall -Wextra -Werror -pedantic`.
 
+Or build with CMake (the cross-platform route — also how CI tests
+Windows and macOS):
+
+```sh
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
