@@ -9,7 +9,8 @@ mismatch is a compile error — not a `void*` cast that fails at runtime.
 ## Features
 
 - `map`, `filter`, `fold`, `take`, `drop`, `find`, `any`, `all` over slices
-- **Typed.** One macro generates the whole API for your element type.
+- **Typed, without macro abuse.** The loops live once, in real functions
+  over untyped storage; `CF_DEFINE` only generates thin typed wrappers.
 - **Header-only.** Copy `include/cf.h` into your project; nothing to link.
 - **C99 baseline.** No `_Generic`, no `typeof`, no designated initializers —
   it compiles from C99 through C23, including on old compilers.
